@@ -1,15 +1,19 @@
 from urllib import request, parse
 import os
 import re
+import time
+import threading,queue
 
 def saveImg(url, fileName):
+    print('saving...'+fileName)
+    print('count',threading.active_count())
     u = request.urlopen(url)
     data = u.read()
     f = open(fileName,'wb')
     f.write(data)
-    print('saving...'+fileName)
-
     f.close()
+
+
 
 userAgent = "Mozilla/5.0"
 headers = {'User-Agent':userAgent}
@@ -26,10 +30,27 @@ path = os.path.dirname(os.path.abspath(__file__))
 path = os.path.join(path, os.pardir,'pic')
 print(path)
 
-for i in range(0,len(names)):
-    fileName = path+'/'+names[i]+'.jpg'
-    saveImg(images[i], fileName)
+tmpTime = time.time()
+threads = []
+works = []#images[i],fileName
 
+tmpCnt = 1
+for i in range(0,tmpCnt*len(images)):
+    idx = int(i/tmpCnt)
+    works.append((images[idx],path+'/'+names[idx]+'.jpg'))
+
+maxThreadCnt = 15
+for i in range(0,maxThreadCnt):
+    fileName = path+'/'+names[i]+'.jpg'
+    t = threading.Thread(target=saveImg, args=(works[i]))
+    t.start()
+    threads.append(t)
+#for t in threads:
+#    t.join()
+
+
+print(threading.active_count())
+print('time delta:',time.time()-tmpTime)
 
 
 
