@@ -13,10 +13,31 @@ def saveImg(url, fileName):
     f.close()
 
 def addWork():
-    for i in range(0, 100):
+    for info in infos:
         print('add work size :',works.qsize())
-        works.put((saveImg, list((images[1], path + '/' + names[1] + '.jpg'))))
-        time.sleep(1)
+        link = info[0].replace('thumb','cover')
+        idx = link.find('.jpg')
+        link = link[:idx]+'_b'+link[idx:]
+        title = info[1]+'_'+info[2]
+        works.put((saveImg, list((link, picsPath + '/' + title + '.jpg'))))
+def savePages():
+
+    pagesPath = os.path.join(path, os.pardir, 'pages')
+    if not os.path.exists(pagesPath):
+      os.makedirs(pagesPath)
+    userAgent = "Mozilla/5.0"
+    headers = {'User-Agent': userAgent}
+    url = 'https://www.javbus.com/page/'
+    page = 4
+    htmlThreads = []
+    for i in range(1,page+1):
+        tmpUrl = url+str(i)
+        req = request.Request(tmpUrl, headers=headers)
+        res = request.urlopen(req)
+        content = res.read().decode('utf-8')
+        f = open(pagesPath+'/'+str(i)+'_page.html', 'w')
+        f.write(content)
+        f.close()
 
 
 class Work(threading.Thread):
@@ -35,47 +56,50 @@ class Work(threading.Thread):
                 dofun, args = self.work_queue.get(block=False)
                 dofun(args[0], args[1])
                 self.work_queue.task_done()
+                print('left work count : ', self.work_queue.qsize())
             except Exception as e:
-                print('ex')
+                print('ex:',e)
                 break;
 
 path = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(path, os.pardir, 'pic')
-userAgent = "Mozilla/5.0"
-headers = {'User-Agent': userAgent}
-url = 'https://www.javbus.com/page/'
-page = 10
-htmlThreads = []
-for i in range(1,page+1):
-    tmpUrl = url+str(i)
-    req = request.Request(tmpUrl, headers=headers)
-    res = request.urlopen(req)
-    content = res.read().decode('utf-8')
-    f = open(path+'/'+str(i)+'_page.html', 'w')
-    f.write(content)
-    f.close()
-exit()
-req = request.Request(url, headers=headers)
-res = request.urlopen(req)
+picsPath = os.path.join(path, os.pardir, 'pic')
+pagesPath = os.path.join(path, os.pardir, 'pages')
+savePages()
+pagesName = []
+strLinkPtn = '<div class="photo-frame">\s*<img src="(.*?)"'
+strTitlePtn = '<div class="photo-info">[\s\S]*?<date>(.*?)</date> / <date>(.*?)</date></span>'
+pattern = re.compile(strLinkPtn+'[\s\S]*?'+strTitlePtn)
+infos = []
+for page in os.walk(pagesPath):
+    pagesName = page[2]
+for page in pagesName:
+    if page.startswith('.'):continue
+    data = open(os.path.join(pagesPath, page),encoding='utf-8')
+    data = data.read()
+    images = re.findall(pattern, data)
+    infos.extend(images)
+    print(len(infos))
 
-content = res.read().decode('utf-8')
-
-
-
-
-patternName = re.compile('<p class="name"><strong><a.*?>(.*?)</a')
-patternImg = re.compile('<div class="album">\s*<div class="image">\s*<img src="(.*?)"')
-names = re.findall(patternName, content)
-images = re.findall(patternImg, content)
-
-tmpTime = time.time()
+# req = request.Request(url, headers=headers)
+# res = request.urlopen(req)
+#
+# content = res.read().decode('utf-8')
+#
+#
+#
+#
+# patternName = re.compile('<div class="photo-frame"><strong><a.*?>(.*?)</a')
+# patternImg = re.compile('<div class="album">\s*<div class="image">\s*<img src="(.*?)"')
+# names = re.findall(patternName, content)
+# images = re.findall(patternImg, content)
+#
 threads = []
 works = queue.Queue()
 
 addWorkThread = threading.Thread(target=addWork)
 threads.append(addWorkThread)
 addWorkThread.start()
-
+tmpTime = time.time()
 maxTCnt = 5
 for i in range(0, maxTCnt):
     w = Work(works)
@@ -84,5 +108,4 @@ for i in range(0, maxTCnt):
 for t in threads:
     t.join()
 
-print(threading.active_count())
-print('time delta:', time.time() - tmpTime)
+print('time : ',(time.time()-tmpTime))
