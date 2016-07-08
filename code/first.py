@@ -3,7 +3,7 @@ import os
 import re
 import time
 import threading, queue
-
+import Resource,lxfetch
 
 def saveImg(url, fileName):
     u = request.urlopen(url)
@@ -13,24 +13,41 @@ def saveImg(url, fileName):
     f.close()
 
 def addWork():
-    for info in infos:
+    for info in crawlerData:
         print('add work size :',works.qsize())
         link = info[0].replace('thumb','cover')
         idx = link.find('.jpg')
         link = link[:idx]+'_b'+link[idx:]
         title = info[1]+'_'+info[2]
         works.put((saveImg, list((link, picsPath + '/' + title + '.jpg'))))
-def savePages():
 
-    pagesPath = os.path.join(path, os.pardir, 'pages')
+def saveCurResources(data):
+    with open(prevPagesPath+'/data.txt','w') as file:
+        file.write(','.join(data))
+
+def loadPrevResources():
+    if not os.path.exists(prevPagesPath):
+      os.makedirs(prevPagesPath)
+    fileName = prevPagesPath+'/data.txt'
+    if os.path.isfile(fileName):
+        data = open(fileName,'r')
+        data = data.read()
+        prevTitles = ['sdsdf']
+        if data.find(',')>=0:
+            prevTitles = data.split(',')
+        else :
+            prevTitles = ['sdf']
+
+
+def savePages():
     if not os.path.exists(pagesPath):
       os.makedirs(pagesPath)
     userAgent = "Mozilla/5.0"
     headers = {'User-Agent': userAgent}
     url = 'https://www.javbus.com/page/'
-    page = 4
+    maxPage = 4
     htmlThreads = []
-    for i in range(1,page+1):
+    for i in range(1,maxPage+1):
         tmpUrl = url+str(i)
         req = request.Request(tmpUrl, headers=headers)
         res = request.urlopen(req)
@@ -38,6 +55,14 @@ def savePages():
         f = open(pagesPath+'/'+str(i)+'_page.html', 'w')
         f.write(content)
         f.close()
+        if dataExist(content):
+            break;
+
+def dataExist(pageContent):
+    for title in prevTitles:
+        if pageContent.index(title) > 0:
+            return True
+    return False
 
 
 class Work(threading.Thread):
@@ -61,15 +86,25 @@ class Work(threading.Thread):
                 print('ex:',e)
                 break;
 
+res = Resource.Resource()
+fetch = lxfetch.lxfetch()
+exit(0);
 path = os.path.dirname(os.path.abspath(__file__))
 picsPath = os.path.join(path, os.pardir, 'pic')
 pagesPath = os.path.join(path, os.pardir, 'pages')
+prevPagesPath = os.path.join(path, os.pardir, 'prev')
+prevTitles = []
+patternLink = '<div class="photo-frame">\s*<img src="(.*?)"'
+patternTitle = '<div class="photo-info">[\s\S]*?<date>(.*?)</date> / <date>(.*?)</date></span>'
+
+exit(0)
 savePages()
-pagesName = []
-strLinkPtn = '<div class="photo-frame">\s*<img src="(.*?)"'
-strTitlePtn = '<div class="photo-info">[\s\S]*?<date>(.*?)</date> / <date>(.*?)</date></span>'
-pattern = re.compile(strLinkPtn+'[\s\S]*?'+strTitlePtn)
-infos = []
+pagesName=[]
+crawlerData = []
+
+
+pattern = re.compile(patternLink+'[\s\S]*?'+patternTitle)
+
 for page in os.walk(pagesPath):
     pagesName = page[2]
 for page in pagesName:
@@ -77,22 +112,10 @@ for page in pagesName:
     data = open(os.path.join(pagesPath, page),encoding='utf-8')
     data = data.read()
     images = re.findall(pattern, data)
-    infos.extend(images)
-    print(len(infos))
+    crawlerData.extend(images)
+    print(len(crawlerData))
 
-# req = request.Request(url, headers=headers)
-# res = request.urlopen(req)
-#
-# content = res.read().decode('utf-8')
-#
-#
-#
-#
-# patternName = re.compile('<div class="photo-frame"><strong><a.*?>(.*?)</a')
-# patternImg = re.compile('<div class="album">\s*<div class="image">\s*<img src="(.*?)"')
-# names = re.findall(patternName, content)
-# images = re.findall(patternImg, content)
-#
+
 threads = []
 works = queue.Queue()
 
