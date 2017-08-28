@@ -11,7 +11,7 @@ class lxfetch():
 
     def fetchData(self):
         headers = {'User-Agent': "Mozilla/5.0"}
-        url = 'https://www.javbus.com/page/'
+        url = 'https://www.xxxxx.com/page/'
         htmlThreads = []
         for i in range(1,self.iFetchMaxPage+1):
             tmpUrl = url+str(i)
